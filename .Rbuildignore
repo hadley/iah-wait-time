@@ -1,0 +1,7 @@
+^\.claude$
+^\.github$
+^data$
+^collapsed$
+^1-scrape\.R$
+^2-collapse\.R$
+^LICENSE$
