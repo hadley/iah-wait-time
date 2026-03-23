@@ -9,4 +9,5 @@ data <- paths |> lapply(read_parquet)
 data <- do.call(rbind, data)
 data <- data[!duplicated(data[c("id", "time")]), ]
 
-write_parquet(data, sprintf("collapsed/%s.parquet", month))
+dir.create("data/collapsed", showWarnings = FALSE)
+write_parquet(data, sprintf("data/collapsed/%s.parquet", month))
