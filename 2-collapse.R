@@ -5,7 +5,15 @@ month <- format(Sys.time(), "%Y-%m", tz = "America/Chicago")
 paths <- Sys.glob(paste0("data/", month, "-*.parquet"))
 gha_notice("Collapsing {length(paths)} daily files for {month}")
 
-data <- paths |> lapply(read_parquet)
+data <- paths |> lapply(\(path) {
+  tryCatch(
+    read_parquet(path),
+    error = function(e) {
+      gha_warning("Skipping corrupt file {path}: {conditionMessage(e)}")
+      NULL
+    }
+  )
+})
 data <- do.call(rbind, data)
 data <- data[!duplicated(data[c("id", "time")]), ]
 
