@@ -14,15 +14,19 @@ resp <- request("https://api.houstonairports.mobi/wait-times/checkpoint/iah") |>
 data <- resp_body_json(resp)
 checkpoints <- data$data$wait_times
 
+pluck <- function(xs, name, default) {
+  vapply(xs, \(x) x[[name]] %||% default, default)
+}
+
 df <- data.frame(
   time = .POSIXct(
-    vapply(checkpoints, `[[`, 0, "lastUpdatedTimestamp"),
+    pluck(checkpoints, "lastUpdatedTimestamp", 0),
     tz = "America/Chicago"
   ),
-  id = vapply(checkpoints, `[[`, "", "id"),
-  name = vapply(checkpoints, `[[`, "", "name"),
-  is_open = vapply(checkpoints, `[[`, TRUE, "isOpen"),
-  wait_seconds = vapply(checkpoints, `[[`, 0, "waitSeconds")
+  id = pluck(checkpoints, "id", ""),
+  name = pluck(checkpoints, "name", ""),
+  is_open = pluck(checkpoints, "isOpen", TRUE),
+  wait_seconds = pluck(checkpoints, "waitSeconds", NA_real_)
 )
 
 today <- as.Date(format(Sys.time(), tz = "America/Chicago"))
