@@ -34,8 +34,16 @@ day <- format(today, "%Y-%m-%d")
 path <- file.path("data", paste0(day, ".parquet"))
 
 if (file.exists(path)) {
-  append_parquet(df, path)
-} else {
-  write_parquet(df, path)
+  old <- tryCatch(
+    read_parquet(path),
+    error = function(e) {
+      gha_warning("Corrupted parquet file: {path}")
+      NULL
+    }
+  )
+  if (!is.null(old)) {
+    df <- rbind(old, df)
+  }
 }
+write_parquet(df, path)
 gha_notice("Wrote {nrow(df)} rows to {path}")
