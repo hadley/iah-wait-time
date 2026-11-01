@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>IAH security wait times</title>
+<style>
+  :root, :root[data-theme="light"] {
+    --bg: #f9fafb;
+    --fg: #111827;
+    --card: #ffffff;
+    --border: #e5e7eb;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --stale: #dc2626;
+    --band: rgba(37, 99, 235, 0.12);
+    --typical: #9ca3af;
+    --lane-std-bg: #e5e7eb; --lane-std-fg: #374151;
+    --lane-pre-bg: #dcfce7; --lane-pre-fg: #166534;
+    --lane-prem-bg: #ede9fe; --lane-prem-fg: #5b21b6;
+    --lane-cust-bg: #ffedd5; --lane-cust-fg: #9a3412;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f172a;
+      --fg: #e5e7eb;
+      --card: #1e293b;
+      --border: #334155;
+      --muted: #94a3b8;
+      --accent: #60a5fa;
+      --stale: #f87171;
+      --band: rgba(96, 165, 250, 0.15);
+      --typical: #64748b;
+      --lane-std-bg: #334155; --lane-std-fg: #cbd5e1;
+      --lane-pre-bg: #14532d; --lane-pre-fg: #86efac;
+      --lane-prem-bg: #4c1d95; --lane-prem-fg: #c4b5fd;
+      --lane-cust-bg: #7c2d12; --lane-cust-fg: #fdba74;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f172a;
+    --fg: #e5e7eb;
+    --card: #1e293b;
+    --border: #334155;
+    --muted: #94a3b8;
+    --accent: #60a5fa;
+    --stale: #f87171;
+    --band: rgba(96, 165, 250, 0.15);
+    --typical: #64748b;
+    --lane-std-bg: #334155; --lane-std-fg: #cbd5e1;
+    --lane-pre-bg: #14532d; --lane-pre-fg: #86efac;
+    --lane-prem-bg: #4c1d95; --lane-prem-fg: #c4b5fd;
+    --lane-cust-bg: #7c2d12; --lane-cust-fg: #fdba74;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+  }
+  main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .generated { color: var(--muted); font-size: 0.85rem; margin-bottom: 24px; }
+  .theme-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    padding: 5px 7px;
+    cursor: pointer;
+    line-height: 0;
+  }
+  .theme-btn:hover { color: var(--fg); border-color: var(--muted); }
+  .group-heading { font-size: 1.05rem; margin: 26px 0 10px; }
+  .card.stale-card { opacity: 0.45; }
+  .wait-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 4px 0 2px;
+  }
+  .meta { text-align: right; display: flex; flex-direction: column; gap: 3px; }
+  .meta .sub { font-weight: 600; font-size: 0.9rem; }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 12px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .card .terminal { font-weight: 600; font-size: 0.95rem; }
+  .lane {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-radius: 999px;
+    padding: 2px 8px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .lane-Standard { background: var(--lane-std-bg); color: var(--lane-std-fg); }
+  .lane-PreCheck { background: var(--lane-pre-bg); color: var(--lane-pre-fg); }
+  .lane-Premier { background: var(--lane-prem-bg); color: var(--lane-prem-fg); }
+  .lane-Customs { background: var(--lane-cust-bg); color: var(--lane-cust-fg); }
+  .wait { font-size: 2rem; font-weight: 700; margin: 8px 0 2px; }
+  .wait.closed { color: var(--muted); font-size: 1.2rem; }
+  .status { font-size: 0.8rem; color: var(--muted); }
+  .status.stale { color: var(--stale); }
+  .status .dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 5px;
+  }
+  .dot.open { background: #16a34a; }
+  .dot.closed { background: var(--stale); }
+  .chart-wrap { position: relative; margin-top: 8px; }
+  .tooltip {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 0.72rem;
+    white-space: nowrap;
+    pointer-events: none;
+    color: var(--fg);
+  }
+  .tooltip .t-time { color: var(--muted); }
+  .tooltip .t-today { color: var(--accent); font-weight: 600; }
+  .axis { font-size: 9px; fill: var(--muted); }
+  .grid { stroke: var(--border); stroke-width: 1; }
+  .hoverline { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 2; }
+  .nowline { stroke: var(--accent); stroke-width: 1; stroke-opacity: 0.6; }
+  footer { color: var(--muted); font-size: 0.8rem; margin-top: 32px; }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<!--DATA-->
+<script type="module">
+import { h, render } from 'https://esm.sh/preact@10.25.4';
+import { useState, useEffect, useRef } from 'https://esm.sh/preact@10.25.4/hooks';
+import htm from 'https://esm.sh/htm@3.1.1';
+
+const html = htm.bind(h);
+const DATA = window.DATA;
+
+// X axis is the operational day, 4am to 11pm, in minutes since 4am
+const DAY_START_HOUR = 4;
+const DAY_END_HOUR = 23;
+const X_MAX = (DAY_END_HOUR - DAY_START_HOUR) * 60;
+
+const scale = (domain, range) => x =>
+  range[0] + ((x - domain[0]) / (domain[1] - domain[0])) * (range[1] - range[0]);
+
+// Build SVG path segments, breaking on null y values
+function segments(points, x, y) {
+  const out = [];
+  let d = '';
+  for (const p of points) {
+    if (p == null || p[1] == null || !isFinite(p[1])) {
+      if (d) { out.push(d); d = ''; }
+    } else {
+      d += (d ? 'L' : 'M') + x(p[0]).toFixed(1) + ',' + y(p[1]).toFixed(1);
+    }
+  }
+  if (d) out.push(d);
+  return out;
+}
+
+function Path({ points, x, y, stroke, width = 2, dash = null }) {
+  return segments(points, x, y).map(d => html`
+    <path d=${d} fill="none" stroke=${stroke} stroke-width=${width}
+      stroke-dasharray=${dash} stroke-linejoin="round" stroke-linecap="round" />
+  `);
+}
+
+// Filled band between p95 (top) and 0, breaking on nulls
+function Band({ p95, x, y }) {
+  const out = [];
+  let run = [];
+  const flush = () => {
+    if (run.length > 1) {
+      const top = run.map(p => 'L' + x(p[0]).toFixed(1) + ',' + y(p[1]).toFixed(1)).join(' ');
+      const d = 'M' + x(run[0][0]).toFixed(1) + ',' + y(0).toFixed(1) + top +
+        'L' + x(run[run.length - 1][0]).toFixed(1) + ',' + y(0).toFixed(1) + 'Z';
+      out.push(d);
+    }
+    run = [];
+  };
+  for (const p of p95) {
+    if (p[1] == null || !isFinite(p[1])) flush();
+    else run.push(p);
+  }
+  flush();
+  return out.map(d => html`<path d=${d} fill="var(--band)" stroke="none" />`);
+}
+
+const fmtTime = iso => new Date(iso).toLocaleString('en-US', {
+  timeZone: 'America/Chicago', month: 'short', day: 'numeric',
+  hour: 'numeric', minute: '2-digit'
+});
+
+const fmtAgo = ms => {
+  const m = Math.round(ms / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return m + ' min ago';
+  const h = Math.round(m / 60);
+  if (h < 48) return h + ' hr ago';
+  return Math.round(h / 24) + ' days ago';
+};
+
+const hourLabel = h => {
+  const clock = ((DAY_START_HOUR + h) % 24 + 24) % 24;
+  return (clock % 12 || 12) + (clock < 12 ? 'a' : 'p');
+};
+
+const fmtMinutes = m => {
+  const clock = (DAY_START_HOUR * 60 + m) % 1440;
+  const hh = Math.floor(clock / 60), mm = Math.round(clock % 60);
+  return (hh % 12 || 12) + ':' + String(mm).padStart(2, '0') + (hh < 12 ? 'a' : 'p');
+};
+
+// Minutes since DAY_START_HOUR, right now in Houston
+const nowMinutes = () => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago', hour: 'numeric', minute: 'numeric', hour12: false
+  }).formatToParts(new Date());
+  const get = t => Number(parts.find(p => p.type === t).value) || 0;
+  return (get('hour') % 24) * 60 + get('minute') - DAY_START_HOUR * 60;
+};
+
+function Card({ cp, typicalMax, generatedMs, nowMin }) {
+  const H = 110, PL = 26, PB = 16, PT = 6;
+  const [hover, setHover] = useState(null);
+  // Stretch the chart to the card width
+  const wrapRef = useRef(null);
+  const [W, setW] = useState(330);
+  useEffect(() => {
+    const ro = new ResizeObserver(entries => {
+      setW(Math.round(entries[0].contentRect.width));
+    });
+    ro.observe(wrapRef.current);
+    return () => ro.disconnect();
+  }, []);
+  const ymax = Math.max(10, typicalMax, ...cp.today.map(p => p[1])) * 1.1;
+  const staleMs = generatedMs - Date.parse(cp.updated);
+  const stale = staleMs > 90 * 60 * 1000;
+  // Sub-terminal name: strip the group prefix ("Terminal A North" -> "North")
+  const sub = cp.terminal.replace(cp.group, '').trim();
+  const subLabel = sub ? sub + ' — ' + cp.lane : cp.lane;
+  // Y axis on 5-minute breaks
+  const ytop = Math.max(10, Math.ceil(ymax / 5) * 5);
+  const yticks = [];
+  for (let v = 0; v <= ytop; v += 5) yticks.push(v);
+  const y = scale([0, ytop], [H - PB, PT]);
+  const x = scale([0, X_MAX], [PL, W - 4]);
+  // Window is 4am-11pm: drop hours and points outside it
+  const nHours = DAY_END_HOUR - DAY_START_HOUR;
+  const todayIn = cp.today.filter(p => p[0] <= X_MAX);
+  // Hourly values sit at hour centres; extend the ends flush to the window edges
+  const centered = arr => {
+    const pts = arr.slice(0, nHours).map((v, h) => [h * 60 + 30, v]);
+    pts.unshift([0, arr[0]]);
+    pts.push([X_MAX, arr[nHours - 1]]);
+    return pts;
+  };
+  const median = centered(cp.hourly);
+  const p95 = centered(cp.p95);
+
+  const onMove = e => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const frac = (e.clientX - rect.left - PL) / (W - 4 - PL);
+    setHover(Math.max(0, Math.min(X_MAX, frac * X_MAX)));
+  };
+
+  // Values at the hovered minute
+  let tip = null;
+  if (hover != null) {
+    const hi = Math.max(0, Math.min(nHours - 1, Math.floor(hover / 60)));
+    const med = cp.hourly[hi];
+    const hi95 = cp.p95[hi];
+    let todayVal = null, todayX = null;
+    for (const p of todayIn) {
+      if (todayX == null || Math.abs(p[0] - hover) < Math.abs(todayX - hover)) {
+        todayX = p[0]; todayVal = p[1];
+      }
+    }
+    if (todayX != null && Math.abs(todayX - hover) > 30) todayVal = null;
+    tip = { med, hi95, todayVal };
+  }
+
+  return html`
+    <div class="card ${stale ? 'stale-card' : ''}">
+      <div class="wait-row">
+        ${cp.open && cp.waitMin != null
+          ? html`<div class="wait">${cp.waitMin}<span style="font-size:1rem;font-weight:500"> min</span></div>`
+          : html`<div class="wait closed">Closed</div>`}
+        <div class="meta">
+          <div class="sub">${subLabel}</div>
+          <div class="status ${stale ? 'stale' : ''}">
+            <span class="dot ${cp.open && !stale ? 'open' : 'closed'}"></span>
+            updated ${fmtAgo(staleMs)}
+          </div>
+        </div>
+      </div>
+      <div class="chart-wrap" ref=${wrapRef}>
+        <svg width=${W} height=${H} style="display:block" onMouseMove=${onMove} onMouseLeave=${() => setHover(null)}>
+          ${yticks.map(v => html`
+            <line class="grid" x1=${PL} x2=${W - 4} y1=${y(v)} y2=${y(v)} />
+            <text class="axis" x=${PL - 3} y=${y(v) + 3} text-anchor="end">${v}</text>
+          `)}
+          <${Band} p95=${p95} x=${x} y=${y} />
+          <${Path} points=${median} x=${x} y=${y} stroke="var(--typical)" width=${1.5} dash="3 3" />
+          <${Path} points=${todayIn} x=${x} y=${y} stroke="var(--accent)" width=${2} />
+          ${nowMin >= 0 && nowMin <= X_MAX && html`
+            <line class="nowline" x1=${x(nowMin)} x2=${x(nowMin)} y1=${PT} y2=${H - PB} />
+          `}
+          ${hover != null && html`
+            <line class="hoverline" x1=${x(hover)} x2=${x(hover)} y1=${PT} y2=${H - PB} />
+          `}
+          ${[0, 6, 12].map(h => html`
+            <text class="axis" x=${x(h * 60)} y=${H - 3} text-anchor="middle">${hourLabel(h)}</text>
+          `)}
+          <text class="axis" x=${x(X_MAX)} y=${H - 3} text-anchor="middle">${hourLabel(DAY_END_HOUR - DAY_START_HOUR)}</text>
+        </svg>
+        ${tip && html`
+          <div class="tooltip" style="left:${Math.max(70, Math.min(W - 70, x(hover)))}px">
+            <span class="t-time">${fmtMinutes(hover)}</span>
+            ${tip.todayVal != null && html`<span class="t-today"> today ${tip.todayVal}</span>`}
+            ${tip.med != null && html`<span> · median ${tip.med}</span>`}
+            ${tip.hi95 != null && html`<span> · p95 ${tip.hi95}</span>`}
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+}
+
+const THEMES = ['system', 'light', 'dark'];
+
+const ICONS = {
+  system: html`<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+    <circle cx="8" cy="8" r="6.2" />
+    <path d="M8 1.8 A6.2 6.2 0 0 1 8 14.2 Z" fill="currentColor" stroke="none" />
+  </svg>`,
+  light: html`<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+    <circle cx="8" cy="8" r="3.2" />
+    <path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3" />
+  </svg>`,
+  dark: html`<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+    <path d="M13.5 9.5 A5.8 5.8 0 1 1 6.5 2.5 A4.6 4.6 0 0 0 13.5 9.5 Z" />
+  </svg>`
+};
+
+function ThemeSwitcher() {
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'system');
+  useEffect(() => {
+    if (theme === 'system') {
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      document.documentElement.dataset.theme = theme;
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+  const next = () => setTheme(THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]);
+  return html`<button class="theme-btn" onClick=${next} title="Theme: ${theme} (click to change)">${ICONS[theme]}</button>`;
+}
+
+function App() {
+  const cps = DATA.checkpoints;
+  const typicalMax = Math.max(...cps.flatMap(cp => cp.p95.filter(v => v != null)), 10);
+  const generatedMs = Date.parse(DATA.generated);
+  // Live "now" marker, updated every minute
+  const [nowMin, setNowMin] = useState(nowMinutes);
+  useEffect(() => {
+    const id = setInterval(() => setNowMin(nowMinutes()), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Checkpoints arrive pre-sorted; collect consecutive runs into groups
+  const groups = [];
+  for (const cp of cps) {
+    const last = groups[groups.length - 1];
+    if (last && last.name === cp.group) last.items.push(cp);
+    else groups.push({ name: cp.group, items: [cp] });
+  }
+
+  return html`
+    <div class="header">
+      <div>
+        <h1>IAH security wait times</h1>
+        <div class="generated">As of ${fmtTime(DATA.generated)} (Central)</div>
+      </div>
+      <${ThemeSwitcher} />
+    </div>
+
+    ${groups.map(g => html`
+      <h2 class="group-heading" key=${g.name}>${g.name}</h2>
+      <div class="cards">
+        ${g.items.map(cp => html`<${Card} key=${cp.id} cp=${cp} typicalMax=${typicalMax} generatedMs=${generatedMs} nowMin=${nowMin} />`)}
+      </div>
+    `)}
+
+    <footer>
+      Wait times from the
+      <a href="https://www.fly2houston.com/iah">Houston Airport System</a>,
+      scraped every 10 minutes. Solid line is today; dashed line and band are
+      the median and 95th percentile over the last 90 days. Days run 4am to 11pm.
+    </footer>
+  `;
+}
+
+render(html`<${App} />`, document.getElementById('app'));
+</script>
+</body>
+</html>
