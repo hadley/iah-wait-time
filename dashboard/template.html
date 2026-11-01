@@ -7,54 +7,45 @@
 <title>IAH security wait times</title>
 <style>
   :root, :root[data-theme="light"] {
-    --bg: #f9fafb;
-    --fg: #111827;
+    --bg: #ffffff;
+    --fg: #18181b;
     --card: #ffffff;
-    --border: #e5e7eb;
-    --muted: #6b7280;
+    --border: #e4e4e7;
+    --grid: #e8e8eb;
+    --muted: #71717a;
     --accent: #2563eb;
-    --stale: #dc2626;
+    --stale: #a16207;
     --typical: #9ca3af;
     --faint: #d1d5db;
     --warn-bg: #fef3c7; --warn-fg: #92400e;
-    --lane-std-bg: #e5e7eb; --lane-std-fg: #374151;
-    --lane-pre-bg: #dcfce7; --lane-pre-fg: #166534;
-    --lane-prem-bg: #ede9fe; --lane-prem-fg: #5b21b6;
-    --lane-cust-bg: #ffedd5; --lane-cust-fg: #9a3412;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #0f172a;
-      --fg: #e5e7eb;
-      --card: #1e293b;
-      --border: #334155;
-      --muted: #94a3b8;
+      --bg: #111113;
+      --fg: #e4e4e7;
+      --card: #18181b;
+      --border: #2e2e33;
+      --grid: #2a2a2f;
+      --muted: #8b8b93;
       --accent: #60a5fa;
-      --stale: #f87171;
+      --stale: #ca9a52;
       --typical: #64748b;
       --faint: #475569;
       --warn-bg: #451a03; --warn-fg: #fcd34d;
-      --lane-std-bg: #334155; --lane-std-fg: #cbd5e1;
-      --lane-pre-bg: #14532d; --lane-pre-fg: #86efac;
-      --lane-prem-bg: #4c1d95; --lane-prem-fg: #c4b5fd;
-      --lane-cust-bg: #7c2d12; --lane-cust-fg: #fdba74;
-    }
+            }
   }
   :root[data-theme="dark"] {
-    --bg: #0f172a;
-    --fg: #e5e7eb;
-    --card: #1e293b;
-    --border: #334155;
-    --muted: #94a3b8;
+    --bg: #111113;
+    --fg: #e4e4e7;
+    --card: #18181b;
+    --border: #2e2e33;
+    --grid: #2a2a2f;
+    --muted: #8b8b93;
     --accent: #60a5fa;
-    --stale: #f87171;
+    --stale: #ca9a52;
     --typical: #64748b;
     --faint: #475569;
     --warn-bg: #451a03; --warn-fg: #fcd34d;
-    --lane-std-bg: #334155; --lane-std-fg: #cbd5e1;
-    --lane-pre-bg: #14532d; --lane-pre-fg: #86efac;
-    --lane-prem-bg: #4c1d95; --lane-prem-fg: #c4b5fd;
-    --lane-cust-bg: #7c2d12; --lane-cust-fg: #fdba74;
   }
   * { box-sizing: border-box; }
   body {
@@ -65,14 +56,13 @@
   }
   main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
   h1 { font-size: 1.5rem; margin: 0 0 4px; }
-  .header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  .generated { color: var(--muted); font-size: 0.85rem; }
+  .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   .dropdown { position: relative; }
   .dropdown button {
     background: none;
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: 3px;
     color: var(--fg);
     padding: 5px 9px;
     font: inherit;
@@ -92,7 +82,7 @@
     z-index: 10;
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: 3px;
     padding: 4px;
     min-width: 100%;
     display: flex;
@@ -110,7 +100,7 @@
   .banner {
     background: var(--warn-bg);
     color: var(--warn-fg);
-    border-radius: 8px;
+    border-radius: 3px;
     padding: 8px 12px;
     font-size: 0.85rem;
     margin-top: 16px;
@@ -121,35 +111,32 @@
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
-    margin: 26px 0 10px;
+    margin: 40px 0 16px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
   }
-  .group-heading { font-size: 1.05rem; margin: 0; }
+  .group-heading {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0;
+  }
   .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.72rem; color: var(--muted); }
   .legend span { display: inline-flex; align-items: center; gap: 4px; }
   .cards {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
-    gap: 12px;
+    gap: 28px 40px;
   }
-  .card {
-    min-width: 0;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px;
-  }
-  .card-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
-  }
+  .card { min-width: 0; }
+  .reading { display: flex; align-items: baseline; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
   .name { font-weight: 600; font-size: 1rem; }
-  .wait { font-size: 2rem; font-weight: 700; line-height: 1; white-space: nowrap; }
-  .wait .unit { font-size: 1rem; font-weight: 500; }
-  .wait.dim { color: var(--muted); }
+  .wait { font-size: 1.75rem; font-weight: 600; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .wait .unit { font-size: 0.85rem; font-weight: 400; color: var(--muted); }
   .wait.closed { color: var(--muted); font-size: 1.2rem; }
-  .status { font-size: 0.8rem; color: var(--muted); margin-top: 3px; }
+  .status { font-size: 0.8rem; color: var(--muted); }
   .status.stale { color: var(--stale); }
   .chart-wrap { position: relative; margin-top: 8px; touch-action: pan-y; }
   .tooltip {
@@ -158,7 +145,7 @@
     transform: translateX(-50%);
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: 3px;
     padding: 4px 8px;
     font-size: 0.72rem;
     white-space: nowrap;
@@ -167,8 +154,8 @@
   }
   .tooltip .t-time { color: var(--muted); }
   .tooltip .t-today { color: var(--accent); font-weight: 600; }
-  .axis { font-size: 9px; fill: var(--muted); }
-  .grid { stroke: var(--border); stroke-width: 1; }
+  .axis { font-size: 11px; font-variant-numeric: tabular-nums; fill: var(--muted); }
+  .grid { stroke: var(--grid); stroke-width: 1; }
   .hoverline { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 2; }
   .nowline { stroke: var(--accent); stroke-width: 1; stroke-opacity: 0.6; }
   footer { color: var(--muted); font-size: 0.8rem; margin-top: 32px; }
@@ -268,7 +255,7 @@ function Legend({ weekday }) {
 }
 
 function Card({ cp, ytop, nowMs, win }) {
-  const H = 110, PL = 26, PR = 10, PB = 16, PT = 6;
+  const H = 150, PL = 26, PR = 4, PB = 20, PT = 6;
   const [hover, setHover] = useState(null);
   // Stretch the chart to the card width
   const wrapRef = useRef(null);
@@ -337,31 +324,28 @@ function Card({ cp, ytop, nowMs, win }) {
 
   return html`
     <div class="card">
-      <div class="card-top">
-        <div>
-          <div class="name">${label}</div>
-          ${status}
-        </div>
-        ${isOpen
-          ? html`<div class="wait ${stale ? 'dim' : ''}">${cp.waitMin}<span class="unit"> min</span></div>`
+      <div class="name">${label}</div>
+      <div class="reading">
+        ${stale ? null : isOpen
+          ? html`<div class="wait">${cp.waitMin}<span class="unit"> min</span></div>`
           : html`<div class="wait closed">Closed</div>`}
+        ${status}
       </div>
       <div class="chart-wrap" ref=${wrapRef}>
         <svg width=${W} height=${H} style="display:block;max-width:100%" role="img" aria-label=${aria}
           onPointerMove=${onMove} onPointerDown=${onMove} onPointerLeave=${() => setHover(null)}>
           ${yticks.map(v => html`
             <line class="grid" x1=${PL} x2=${W - PR} y1=${yRaw(v)} y2=${yRaw(v)} />
-            <text class="axis" x=${PL - 3} y=${yRaw(v) + 3} text-anchor="end">${v}</text>
+            <text class="axis" x=${PL - 5} y=${yRaw(v) + 4} text-anchor="end">${v}</text>
           `)}
           ${xticks.map(hh => html`
-            <line class="grid" x1=${x(hh * 60)} x2=${x(hh * 60)} y1=${PT} y2=${H - PB} />
-            <text class="axis" x=${x(hh * 60)} y=${H - 3} text-anchor="middle">${clockLabel(start + hh)}</text>
+            <text class="axis" x=${x(hh * 60)} y=${H - 4} text-anchor="middle">${clockLabel(start + hh)}</text>
           `)}
           <${Path} points=${steps(cp.p95)} x=${x} y=${y} stroke="var(--faint)" width=${1.5} />
           <${Path} points=${steps(cp.hourly)} x=${x} y=${y} stroke="var(--typical)" width=${2} />
           <${Path} points=${today} x=${x} y=${y} stroke="var(--accent)" width=${2.5} />
           ${todayMax > ytop && html`
-            <text class="axis" x=${W - PR} y=${PT + 8} text-anchor="end">peak ${Math.round(todayMax)} min ▲</text>
+            <text class="axis" x=${W - PR} y=${PT + 10} text-anchor="end">peak ${Math.round(todayMax)} min ▲</text>
           `}
           ${nowMin >= 0 && nowMin <= xMax && html`
             <line class="nowline" x1=${x(nowMin)} x2=${x(nowMin)} y1=${PT} y2=${H - PB} />
@@ -484,10 +468,7 @@ function App() {
 
   return html`
     <div class="header">
-      <div>
-        <h1>IAH security wait times</h1>
-        <div class="generated">As of ${fmtTime(data.generated)} (Central)</div>
-      </div>
+      <h1>IAH security wait times</h1>
       <div class="controls">
         <${Dropdown} label="Lane" options=${LANES} value=${lane} onChange=${setLane} />
         <${ThemeSwitcher} />
@@ -499,10 +480,10 @@ function App() {
     `}
     ${error && html`<div class="banner">Couldn't refresh data; showing the last copy loaded.</div>`}
 
-    ${groups.map((g, i) => html`
+    ${groups.map(g => html`
       <div class="group-head" key=${g.name}>
         <h2 class="group-heading">${g.name}</h2>
-        ${i === 0 && html`<${Legend} weekday=${data.weekday} />`}
+        <${Legend} weekday=${data.weekday} />
       </div>
       <div class="cards">
         ${g.items.map(cp => html`<${Card} key=${cp.id} cp=${cp}
@@ -511,7 +492,7 @@ function App() {
     `)}
 
     <footer>
-      Source: <a href="https://www.fly2houston.com/iah">Houston Airport System</a>${' · '}<a href="https://github.com/hadley/iah-wait-time">Code on GitHub</a>
+      As of ${fmtTime(data.generated)} (Central) · Source: <a href="https://www.fly2houston.com/iah">Houston Airport System</a>${' · '}<a href="https://github.com/hadley/iah-wait-time">Code on GitHub</a>
     </footer>
   `;
 }
