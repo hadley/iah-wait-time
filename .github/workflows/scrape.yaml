@@ -2,10 +2,8 @@ on:
   workflow_dispatch:
   push:
   schedule:
-    # Every 10 minutes from 4am to 10pm CT (9am to 3am UTC)
-    # Split across two cron entries because cron can't wrap midnight
-    - cron: "*/10 9-23 * * *"
-    - cron: "*/10 0-3 * * *"
+    # Every 10 minutes, around the clock (avoids DST issues with UTC cron)
+    - cron: "*/10 * * * *"
 
 name: scrape
 

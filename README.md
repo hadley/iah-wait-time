@@ -1,6 +1,6 @@
 # IAH security wait times
 
-This repository uses GitHub Actions to scrape security checkpoint wait times from George Bush Intercontinental Airport (IAH) every 10 minutes from 4am to 10pm Central Time.
+This repository uses GitHub Actions to scrape security checkpoint wait times from George Bush Intercontinental Airport (IAH) every 10 minutes.
 
 ## Data
 
