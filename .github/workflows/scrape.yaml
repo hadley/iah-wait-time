@@ -7,6 +7,10 @@ on:
 
 name: scrape
 
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
 permissions:
   contents: write
   pages: write
