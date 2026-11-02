@@ -44,7 +44,7 @@ jobs:
         run: Rscript 3-build.R
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ./site
 
