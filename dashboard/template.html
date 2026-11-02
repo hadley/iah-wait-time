@@ -291,6 +291,14 @@ function Card({ cp, ytop, nowMs, win }) {
   const nowBucket = Math.floor(nowMin / 60);
   const typicalNow = nowMin >= 0 && nowMin < xMax ? cp.hourly[nowBucket] : null;
 
+  // On touch, keep the tooltip after the finger lifts; tapping outside the chart clears it
+  useEffect(() => {
+    if (hover == null) return;
+    const onDoc = e => { if (!wrapRef.current?.contains(e.target)) setHover(null); };
+    document.addEventListener('pointerdown', onDoc);
+    return () => document.removeEventListener('pointerdown', onDoc);
+  }, [hover != null]);
+
   const onMove = e => {
     const rect = e.currentTarget.getBoundingClientRect();
     const frac = (e.clientX - rect.left - PL) / (W - PR - PL);
@@ -333,7 +341,7 @@ function Card({ cp, ytop, nowMs, win }) {
       </div>
       <div class="chart-wrap" ref=${wrapRef}>
         <svg width=${W} height=${H} style="display:block;max-width:100%" role="img" aria-label=${aria}
-          onPointerMove=${onMove} onPointerDown=${onMove} onPointerLeave=${() => setHover(null)}>
+          onPointerMove=${onMove} onPointerDown=${onMove} onPointerLeave=${e => { if (e.pointerType === 'mouse') setHover(null); }}>
           ${yticks.map(v => html`
             <line class="grid" x1=${PL} x2=${W - PR} y1=${yRaw(v)} y2=${yRaw(v)} />
             <text class="axis" x=${PL - 5} y=${yRaw(v) + 4} text-anchor="end">${v}</text>
