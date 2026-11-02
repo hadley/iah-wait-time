@@ -131,11 +131,12 @@
     gap: 28px 40px;
   }
   .card { min-width: 0; }
-  .reading { display: flex; align-items: baseline; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
-  .name { font-weight: 600; font-size: 1rem; }
-  .wait { font-size: 1.75rem; font-weight: 600; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .wait .unit { font-size: 0.85rem; font-weight: 400; color: var(--muted); }
-  .wait.closed { color: var(--muted); font-size: 1.2rem; }
+  .reading { display: flex; align-items: last baseline; justify-content: space-between; gap: 12px; min-height: 2.75rem; }
+  .name { font-weight: 600; font-size: 1rem; line-height: 1.2; min-width: 0; }
+  .reading .status { white-space: nowrap; }
+  .wait { font-size: 2.75rem; font-weight: 600; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .wait .unit { font-size: 0.9rem; font-weight: 400; color: var(--muted); }
+  .wait.closed { color: var(--muted); font-size: 1.6rem; }
   .status { font-size: 0.8rem; color: var(--muted); }
   .status.stale { color: var(--stale); }
   .chart-wrap { position: relative; margin-top: 8px; touch-action: pan-y; }
@@ -223,6 +224,13 @@ const fmtDuration = ms => {
   const h = Math.round(m / 60);
   if (h < 48) return h + ' hr';
   return Math.round(h / 24) + ' days';
+};
+const fmtShort = ms => {
+  const m = Math.round(ms / 60000);
+  if (m < 60) return m + 'm';
+  const h = Math.round(m / 60);
+  if (h < 48) return h + 'h';
+  return Math.round(h / 24) + 'd';
 };
 const fmtAgo = ms => ms < 60000 ? 'just now' : fmtDuration(ms) + ' ago';
 
@@ -327,16 +335,16 @@ function Card({ cp, ytop, nowMs, win }) {
     (typicalNow != null ? `, typically ${Math.round(typicalNow)} min at this time` : '');
 
   let status;
-  if (stale) status = html`<div class="status stale">No update for ${fmtDuration(staleMs)}</div>`;
-  else status = html`<div class="status">${isOpen ? 'Open' : 'Closed'} · updated ${fmtAgo(staleMs)}</div>`;
+  status = html`<div class=${'status' + (stale ? ' stale' : '')} title=${'Updated ' + fmtAgo(staleMs)}>
+    ${staleMs < 60000 ? 'now' : fmtShort(staleMs) + ' ago'}</div>`;
 
   return html`
     <div class="card">
-      <div class="name">${label}</div>
       <div class="reading">
         ${stale ? null : isOpen
           ? html`<div class="wait">${cp.waitMin}<span class="unit"> min</span></div>`
           : html`<div class="wait closed">Closed</div>`}
+        <div class="name">${label}</div>
         ${status}
       </div>
       <div class="chart-wrap" ref=${wrapRef}>
