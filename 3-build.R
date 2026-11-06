@@ -5,6 +5,7 @@ library(jsonlite)
 DAY_START_HOUR <- 4
 DAY_END_HOUR <- 22
 n_hours <- DAY_END_HOUR - DAY_START_HOUR
+BIN_MIN <- 10
 
 # In CI, the data branch is checked out at data/; locally use collapsed/
 paths <- Sys.glob("data/collapsed/*.parquet")
@@ -84,8 +85,12 @@ mk_checkpoint <- function(id) {
   hourly <- vapply(hours, \(h) agg(r$wait_min[r$hour == h], median), numeric(1))
   p95 <- vapply(hours, \(h) agg(r$wait_min[r$hour == h], \(x) quantile(x, 0.95, names = FALSE)), numeric(1))
 
+  # Today in 10-minute bins (last reading in each bin); empty bins are omitted
+  # so the dashboard can leave a gap instead of joining across missing data
   t <- o[o$op_day == today_day & o$in_window, ]
-  today <- lapply(seq_len(nrow(t)), \(i) c(t$x[i], round(t$wait_min[i], 1)))
+  t$bin <- t$x %/% BIN_MIN * BIN_MIN
+  t <- t[!duplicated(t$bin, fromLast = TRUE), ]
+  today <- lapply(seq_len(nrow(t)), \(i) c(t$bin[i], round(t$wait_min[i], 1)))
 
   list(
     id = id,
