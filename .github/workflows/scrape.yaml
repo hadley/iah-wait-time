@@ -19,6 +19,8 @@ permissions:
 jobs:
   scrape:
     runs-on: ubuntu-latest
+    # Normal runs take ~1-2 min; fail fast so a hung run doesn't block the queue
+    timeout-minutes: 8
     environment:
       name: github-pages
     env:
