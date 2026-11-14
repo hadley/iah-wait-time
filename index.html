@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>IAH security wait times</title>
+<style>
+  :root, :root[data-theme="light"] {
+    --bg: #ffffff;
+    --fg: #18181b;
+    --card: #ffffff;
+    --border: #e4e4e7;
+    --grid: #e8e8eb;
+    --muted: #71717a;
+    --accent: #2563eb;
+    --stale: #a16207;
+    --typical: #9ca3af;
+    --faint: #d1d5db;
+    --warn-bg: #fef3c7; --warn-fg: #92400e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111113;
+      --fg: #e4e4e7;
+      --card: #18181b;
+      --border: #2e2e33;
+      --grid: #2a2a2f;
+      --muted: #8b8b93;
+      --accent: #60a5fa;
+      --stale: #ca9a52;
+      --typical: #64748b;
+      --faint: #475569;
+      --warn-bg: #451a03; --warn-fg: #fcd34d;
+            }
+  }
+  :root[data-theme="dark"] {
+    --bg: #111113;
+    --fg: #e4e4e7;
+    --card: #18181b;
+    --border: #2e2e33;
+    --grid: #2a2a2f;
+    --muted: #8b8b93;
+    --accent: #60a5fa;
+    --stale: #ca9a52;
+    --typical: #64748b;
+    --faint: #475569;
+    --warn-bg: #451a03; --warn-fg: #fcd34d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+  }
+  main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .dropdown { position: relative; }
+  .dropdown button {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--fg);
+    padding: 5px 9px;
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dropdown button:hover { border-color: var(--muted); }
+  .dropdown .caret { color: var(--muted); font-size: 0.7rem; }
+  .dropdown .menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 10;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 4px;
+    min-width: 100%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  .dropdown .menu button {
+    border: none;
+    width: 100%;
+    white-space: nowrap;
+    padding: 6px 8px;
+  }
+  .dropdown .menu button:hover { background: var(--bg); }
+  .dropdown .menu button[aria-checked="true"] { font-weight: 600; }
+  .banner {
+    background: var(--warn-bg);
+    color: var(--warn-fg);
+    border-radius: 3px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    margin-top: 16px;
+  }
+  .group-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 40px 0 16px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .group-heading {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0;
+  }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.72rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
+    gap: 28px 40px;
+  }
+  .card { min-width: 0; }
+  .reading { display: flex; align-items: last baseline; justify-content: space-between; gap: 12px; min-height: 2.75rem; }
+  .name { font-weight: 600; font-size: 1rem; line-height: 1.2; min-width: 0; }
+  .reading .status { white-space: nowrap; }
+  .wait { font-size: 2.75rem; font-weight: 600; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .wait .unit { font-size: 0.9rem; font-weight: 400; color: var(--muted); }
+  .wait.closed { color: var(--muted); font-size: 1.6rem; }
+  .status { font-size: 0.8rem; color: var(--muted); }
+  .status.stale { color: var(--stale); }
+  .chart-wrap { position: relative; margin-top: 8px; touch-action: pan-y; }
+  .tooltip {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 4px 8px;
+    font-size: 0.72rem;
+    white-space: nowrap;
+    pointer-events: none;
+    color: var(--fg);
+  }
+  .tooltip .t-time { color: var(--muted); }
+  .tooltip .t-today { color: var(--accent); font-weight: 600; }
+  .axis { font-size: 11px; font-variant-numeric: tabular-nums; fill: var(--muted); }
+  .grid { stroke: var(--grid); stroke-width: 1; }
+  .hoverline { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 2; }
+  .nowline { stroke: var(--accent); stroke-width: 1; stroke-opacity: 0.6; }
+  footer { color: var(--muted); font-size: 0.8rem; margin-top: 32px; }
+  footer a { color: inherit; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "preact": "./vendor/preact.module.js",
+  "preact/hooks": "./vendor/hooks.module.js",
+  "htm": "./vendor/htm.module.js"
+} }
+</script>
+</head>
+<body>
+<main id="app">Loading…</main>
+<script type="module">
+import { h, render } from 'preact';
+import { useState, useEffect, useRef } from 'preact/hooks';
+import htm from 'htm';
+
+const html = htm.bind(h);
+
+const DATA_URL = 'data.json';
+const REFRESH_MS = 5 * 60 * 1000;
+const STALE_CP_MS = 90 * 60 * 1000;
+const STALE_PAGE_MS = 30 * 60 * 1000;
+const Y_CAP = 60;
+
+const scale = (domain, range) => x =>
+  range[0] + ((x - domain[0]) / (domain[1] - domain[0])) * (range[1] - range[0]);
+
+// Build SVG path segments, breaking on null y values
+function segments(points, x, y) {
+  const out = [];
+  let d = '';
+  for (const p of points) {
+    if (p == null || p[1] == null || !isFinite(p[1])) {
+      if (d) { out.push(d); d = ''; }
+    } else {
+      d += (d ? 'L' : 'M') + x(p[0]).toFixed(1) + ',' + y(p[1]).toFixed(1);
+    }
+  }
+  if (d) out.push(d);
+  return out;
+}
+
+function Path({ points, x, y, stroke, width = 2, dash = null, opacity = null }) {
+  return segments(points, x, y).map(d => html`
+    <path d=${d} fill="none" stroke=${stroke} stroke-width=${width} stroke-opacity=${opacity}
+      stroke-dasharray=${dash} stroke-linejoin="round" stroke-linecap="round" />
+  `);
+}
+
+// Hourly values as a step function: each bucket is flat for its hour
+const steps = arr => arr.flatMap((v, h) => [[h * 60, v], [h * 60 + 60, v]]);
+
+// Today's 10-minute bins (matches BIN_MIN in 3-build.R) as a step function,
+// with a break wherever a bin is missing
+const BIN_MIN = 10;
+const binSteps = bins => bins.flatMap((p, i) => {
+  const gap = i > 0 && p[0] !== bins[i - 1][0] + BIN_MIN;
+  return [...(gap ? [null] : []), [p[0], p[1]], [p[0] + BIN_MIN, p[1]]];
+});
+// Connectors across missing bins, drawn dotted so gaps stay visible
+const binGaps = bins => bins.flatMap((p, i) => {
+  const prev = bins[i - 1];
+  if (!prev || p[0] === prev[0] + BIN_MIN) return [];
+  return [[prev[0] + BIN_MIN, prev[1]], [p[0], prev[1]], null];
+});
+
+const fmtTime = iso => new Date(iso).toLocaleString('en-US', {
+  timeZone: 'America/Chicago', month: 'short', day: 'numeric',
+  hour: 'numeric', minute: '2-digit'
+});
+
+const fmtDuration = ms => {
+  const m = Math.round(ms / 60000);
+  if (m < 60) return m + ' min';
+  const h = Math.round(m / 60);
+  if (h < 48) return h + ' hr';
+  return Math.round(h / 24) + ' days';
+};
+const fmtShort = ms => {
+  const m = Math.round(ms / 60000);
+  if (m < 60) return m + 'm';
+  const h = Math.round(m / 60);
+  if (h < 48) return h + 'h';
+  return Math.round(h / 24) + 'd';
+};
+const fmtAgo = ms => ms < 60000 ? 'just now' : fmtDuration(ms) + ' ago';
+
+const clockLabel = clock => (clock % 12 || 12) + (clock % 24 < 12 ? 'a' : 'p');
+
+// Minutes since local midnight, right now in Houston
+const houstonMinutes = ms => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago', hour: 'numeric', minute: 'numeric', hourCycle: 'h23'
+  }).formatToParts(new Date(ms));
+  const get = t => Number(parts.find(p => p.type === t).value) || 0;
+  return get('hour') * 60 + get('minute');
+};
+
+const LANES = ['All', 'Standard', 'PreCheck', 'Premier'];
+
+// Customs (arrivals) isn't a departure lane, so it's always shown
+function filterLane(cps, lane) {
+  return cps.filter(cp => lane === 'All' || cp.lane === lane || cp.lane === 'Customs');
+}
+
+function Legend({ weekday }) {
+  const sw = (props) => html`<svg width="18" height="8"><line x1="1" x2="17" y1="4" y2="4" ...${props} /></svg>`;
+  return html`<div class="legend">
+    <span>${sw({ stroke: 'var(--accent)', 'stroke-width': 2.5 })} Today</span>
+    <span>${sw({ stroke: 'var(--typical)', 'stroke-width': 2 })} Typical ${weekday}</span>
+    <span>${sw({ stroke: 'var(--faint)', 'stroke-width': 1.5 })} Bad ${weekday} (95th pct)</span>
+    <span><svg width="8" height="10"><line x1="4" x2="4" y1="0" y2="10" class="nowline" /></svg> Now</span>
+  </div>`;
+}
+
+function Card({ cp, ytop, nowMs, win }) {
+  const H = 150, PL = 26, PR = 4, PB = 20, PT = 6;
+  const [hover, setHover] = useState(null);
+  // Stretch the chart to the card width
+  const wrapRef = useRef(null);
+  const [W, setW] = useState(330);
+  useEffect(() => {
+    const ro = new ResizeObserver(entries => {
+      setW(Math.round(entries[0].contentRect.width));
+    });
+    ro.observe(wrapRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const { start, nHours, xMax, nowMin } = win;
+  const staleMs = nowMs - Date.parse(cp.updated);
+  const stale = staleMs > STALE_CP_MS;
+  const isOpen = cp.open && cp.waitMin != null;
+  const name = cp.lane === 'Customs' ? cp.terminal : cp.terminal + ' ' + cp.lane;
+  const sub = cp.terminal.replace(cp.group, '').trim();
+  const label = cp.lane === 'Customs' ? 'Customs' : (sub ? sub + ' — ' + cp.lane : cp.lane);
+
+  const yticks = [];
+  for (let v = 0; v <= ytop; v += ytop > 30 ? 10 : 5) yticks.push(v);
+  // Pad the data range by 4% on each side, like R's default axis expansion
+  const pad = 0.04;
+  const yRaw = scale([-pad * ytop, (1 + pad) * ytop], [H - PB, PT]);
+  const y = v => yRaw(Math.min(v, ytop));
+  const x = scale([-pad * xMax, (1 + pad) * xMax], [PL, W - PR]);
+  const xticks = [];
+  for (let hh = 0; hh <= nHours; hh += 3) xticks.push(hh);
+
+  const today = cp.today.filter(p => p[0] >= 0 && p[0] <= xMax);
+  const todayMax = today.reduce((m, p) => Math.max(m, p[1]), 0);
+  const nowBucket = Math.floor(nowMin / 60);
+  const typicalNow = nowMin >= 0 && nowMin < xMax ? cp.hourly[nowBucket] : null;
+
+  // On touch, keep the tooltip after the finger lifts; tapping outside the chart clears it
+  useEffect(() => {
+    if (hover == null) return;
+    const onDoc = e => { if (!wrapRef.current?.contains(e.target)) setHover(null); };
+    document.addEventListener('pointerdown', onDoc);
+    return () => document.removeEventListener('pointerdown', onDoc);
+  }, [hover != null]);
+
+  const onMove = e => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const frac = (e.clientX - rect.left - PL) / (W - PR - PL);
+    setHover(Math.max(0, Math.min(xMax - 1, (frac * (1 + 2 * pad) - pad) * xMax)));
+  };
+
+  let tip = null;
+  if (hover != null) {
+    const hi = Math.floor(hover / 60);
+    const bin = today.find(p => hover >= p[0] && hover < p[0] + BIN_MIN);
+    const todayVal = bin ? bin[1] : null;
+    const clock = start * 60 + hover;
+    const time = (Math.floor(clock / 60) % 12 || 12) + ':' +
+      String(Math.floor(clock % 60)).padStart(2, '0') + (clock < 720 ? 'a' : 'p');
+    tip = { time, med: cp.hourly[hi], hi95: cp.p95[hi], todayVal };
+  }
+
+  const aria = `${name}: ` +
+    (isOpen ? `${cp.waitMin} min wait` : 'closed') +
+    (stale ? `, no update for ${fmtDuration(staleMs)}` : '') +
+    (typicalNow != null ? `, typically ${Math.round(typicalNow)} min at this time` : '');
+
+  let status;
+  status = html`<div class=${'status' + (stale ? ' stale' : '')} title=${'Updated ' + fmtAgo(staleMs)}>
+    ${staleMs < 60000 ? 'now' : fmtShort(staleMs) + ' ago'}</div>`;
+
+  return html`
+    <div class="card">
+      <div class="reading">
+        ${stale ? null : isOpen
+          ? html`<div class="wait">${cp.waitMin}<span class="unit"> min</span></div>`
+          : html`<div class="wait closed">Closed</div>`}
+        <div class="name">${label}</div>
+        ${status}
+      </div>
+      <div class="chart-wrap" ref=${wrapRef}>
+        <svg width=${W} height=${H} style="display:block;max-width:100%" role="img" aria-label=${aria}
+          onPointerMove=${onMove} onPointerDown=${onMove} onPointerLeave=${e => { if (e.pointerType === 'mouse') setHover(null); }}>
+          ${yticks.map(v => html`
+            <line class="grid" x1=${PL} x2=${W - PR} y1=${yRaw(v)} y2=${yRaw(v)} />
+            <text class="axis" x=${PL - 5} y=${yRaw(v) + 4} text-anchor="end">${v}</text>
+          `)}
+          ${xticks.map(hh => html`
+            <text class="axis" x=${x(hh * 60)} y=${H - 4} text-anchor="middle">${clockLabel(start + hh)}</text>
+          `)}
+          <${Path} points=${steps(cp.p95)} x=${x} y=${y} stroke="var(--faint)" width=${1.5} />
+          <${Path} points=${steps(cp.hourly)} x=${x} y=${y} stroke="var(--typical)" width=${2} />
+          <${Path} points=${binGaps(today)} x=${x} y=${y} stroke="var(--accent)" width=${1.5} dash="2 3" />
+          <${Path} points=${binSteps(today)} x=${x} y=${y} stroke="var(--accent)" width=${2.5} />
+          ${todayMax > ytop && html`
+            <text class="axis" x=${W - PR} y=${PT + 10} text-anchor="end">peak ${Math.round(todayMax)} min ▲</text>
+          `}
+          ${nowMin >= 0 && nowMin <= xMax && html`
+            <line class="nowline" x1=${x(nowMin)} x2=${x(nowMin)} y1=${PT} y2=${H - PB} />
+          `}
+          ${hover != null && html`
+            <line class="hoverline" x1=${x(hover)} x2=${x(hover)} y1=${PT} y2=${H - PB} />
+          `}
+        </svg>
+        ${tip && html`
+          <div class="tooltip" style="left:${Math.max(80, Math.min(W - 80, x(hover)))}px">
+            <span class="t-time">${tip.time}</span>
+            ${tip.todayVal != null && html`<span class="t-today"> today ${tip.todayVal}</span>`}
+            ${tip.med != null && html`<span> · typical ${tip.med}</span>`}
+            ${tip.hi95 != null && html`<span> · bad ${tip.hi95}</span>`}
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+}
+
+const ICONS = {
+  system: html`<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+    <circle cx="8" cy="8" r="6.2" />
+    <path d="M8 1.8 A6.2 6.2 0 0 1 8 14.2 Z" fill="currentColor" stroke="none" />
+  </svg>`,
+  light: html`<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+    <circle cx="8" cy="8" r="3.2" />
+    <path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3" />
+  </svg>`,
+  dark: html`<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+    <path d="M13.5 9.5 A5.8 5.8 0 1 1 6.5 2.5 A4.6 4.6 0 0 0 13.5 9.5 Z" />
+  </svg>`
+};
+
+// State persisted in localStorage
+function useStored(key, init) {
+  const [v, setV] = useState(() => localStorage.getItem(key) || init);
+  useEffect(() => localStorage.setItem(key, v), [v]);
+  return [v, setV];
+}
+
+// Button that opens a menu of options; closes on choice, outside click, or Esc
+function Dropdown({ options, value, onChange, label, render: r = o => o }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = e => { if (!ref.current.contains(e.target)) setOpen(false); };
+    const onKey = e => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  return html`<div class="dropdown" ref=${ref}>
+    <button aria-haspopup="menu" aria-expanded=${open ? 'true' : 'false'}
+      aria-label=${label + ': ' + value} onClick=${() => setOpen(!open)}>
+      ${r(value)}<span class="caret">▾</span>
+    </button>
+    ${open && html`<div class="menu" role="menu">
+      ${options.map(o => html`<button role="menuitemradio" aria-checked=${o === value ? 'true' : 'false'}
+        onClick=${() => { onChange(o); setOpen(false); }}>${r(o)}</button>`)}
+    </div>`}
+  </div>`;
+}
+
+function ThemeSwitcher() {
+  const [theme, setTheme] = useStored('theme', 'system');
+  useEffect(() => {
+    if (theme === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.dataset.theme = theme;
+  }, [theme]);
+  const name = { system: 'System', light: 'Light', dark: 'Dark' };
+  return html`<${Dropdown} label="Theme" options=${['system', 'light', 'dark']} value=${theme}
+    onChange=${setTheme} render=${o => html`${ICONS[o]} ${name[o]}`} />`;
+}
+
+function App() {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [nowMs, setNowMs] = useState(Date.now());
+  const [lane, setLane] = useStored('lane', 'All');
+
+  useEffect(() => {
+    const load = () => fetch(DATA_URL, { cache: 'no-store' })
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(d => { setData(d); setError(null); })
+      .catch(e => setError(e));
+    load();
+    const refresh = setInterval(load, REFRESH_MS);
+    const tick = setInterval(() => setNowMs(Date.now()), 60000);
+    return () => { clearInterval(refresh); clearInterval(tick); };
+  }, []);
+
+  if (!data) return error ? html`<p>Couldn't load wait time data.</p>` : html`<p>Loading…</p>`;
+
+  const start = data.dayStartHour, nHours = data.dayEndHour - data.dayStartHour;
+  const win = { start, nHours, xMax: nHours * 60, nowMin: houstonMinutes(nowMs) - start * 60 };
+
+  // Shared y scale across all cards, capped so one bad day can't flatten the rest
+  const cps = data.checkpoints;
+  const allMax = Math.max(10, ...cps.flatMap(cp => [
+    ...cp.p95.filter(v => v != null),
+    ...cp.today.filter(p => p[0] >= 0 && p[0] <= win.xMax).map(p => p[1])
+  ]));
+  const ytop = Math.min(Y_CAP, Math.ceil(allMax / 5) * 5);
+
+  const pageAge = nowMs - Date.parse(data.generated);
+
+  // Checkpoints arrive pre-sorted; collect consecutive runs into groups
+  const groups = [];
+  for (const cp of filterLane(cps, lane)) {
+    const last = groups[groups.length - 1];
+    if (last && last.name === cp.group) last.items.push(cp);
+    else groups.push({ name: cp.group, items: [cp] });
+  }
+
+  return html`
+    <div class="header">
+      <h1>IAH security wait times</h1>
+      <div class="controls">
+        <${Dropdown} label="Lane" options=${LANES} value=${lane} onChange=${setLane} />
+        <${ThemeSwitcher} />
+      </div>
+    </div>
+
+    ${pageAge > STALE_PAGE_MS && html`
+      <div class="banner">Data was last updated ${fmtAgo(pageAge)}; the scraper may be delayed.</div>
+    `}
+    ${error && html`<div class="banner">Couldn't refresh data; showing the last copy loaded.</div>`}
+
+    ${groups.map(g => html`
+      <div class="group-head" key=${g.name}>
+        <h2 class="group-heading">${g.name}</h2>
+        <${Legend} weekday=${data.weekday} />
+      </div>
+      <div class="cards">
+        ${g.items.map(cp => html`<${Card} key=${cp.id} cp=${cp}
+          ytop=${ytop} nowMs=${nowMs} win=${win} />`)}
+      </div>
+    `)}
+
+    <footer>
+      As of ${fmtTime(data.generated)} (Central) · Source: <a href="https://www.fly2houston.com/iah">Houston Airport System</a>${' · '}<a href="https://github.com/hadley/iah-wait-time">Code on GitHub</a>
+    </footer>
+  `;
+}
+
+const root = document.getElementById('app');
+root.textContent = '';
+render(html`<${App} />`, root);
+</script>
+</body>
+</html>
