@@ -105,23 +105,14 @@
     font-size: 0.85rem;
     margin-top: 16px;
   }
-  .group-head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin: 40px 0 16px;
-    padding-bottom: 6px;
+  .legend-bar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--bg);
+    margin: 24px 0 20px;
+    padding: 8px 0 6px;
     border-bottom: 1px solid var(--border);
-  }
-  .group-heading {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--muted);
-    margin: 0;
   }
   .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.72rem; color: var(--muted); }
   .legend span { display: inline-flex; align-items: center; gap: 4px; }
@@ -295,8 +286,8 @@ function Card({ cp, ytop, nowMs, win }) {
   const stale = staleMs > STALE_CP_MS;
   const isOpen = cp.open && cp.waitMin != null;
   const name = cp.lane === 'Customs' ? cp.terminal : cp.terminal + ' ' + cp.lane;
-  const sub = cp.terminal.replace(cp.group, '').trim();
-  const label = cp.lane === 'Customs' ? 'Customs' : (sub ? sub + ' — ' + cp.lane : cp.lane);
+  const label = cp.lane === 'Customs' ? cp.terminal
+    : cp.terminal.replace(/^Terminal /, '') + ' (' + cp.lane + ')';
 
   const yticks = [];
   for (let v = 0; v <= ytop; v += ytop > 30 ? 10 : 5) yticks.push(v);
@@ -484,14 +475,6 @@ function App() {
 
   const pageAge = nowMs - Date.parse(data.generated);
 
-  // Checkpoints arrive pre-sorted; collect consecutive runs into groups
-  const groups = [];
-  for (const cp of filterLane(cps, lane)) {
-    const last = groups[groups.length - 1];
-    if (last && last.name === cp.group) last.items.push(cp);
-    else groups.push({ name: cp.group, items: [cp] });
-  }
-
   return html`
     <div class="header">
       <h1>IAH security wait times</h1>
@@ -506,16 +489,11 @@ function App() {
     `}
     ${error && html`<div class="banner">Couldn't refresh data; showing the last copy loaded.</div>`}
 
-    ${groups.map(g => html`
-      <div class="group-head" key=${g.name}>
-        <h2 class="group-heading">${g.name}</h2>
-        <${Legend} weekday=${data.weekday} />
-      </div>
-      <div class="cards">
-        ${g.items.map(cp => html`<${Card} key=${cp.id} cp=${cp}
-          ytop=${ytop} nowMs=${nowMs} win=${win} />`)}
-      </div>
-    `)}
+    <div class="legend-bar"><${Legend} weekday=${data.weekday} /></div>
+    <div class="cards">
+      ${filterLane(cps, lane).map(cp => html`<${Card} key=${cp.id} cp=${cp}
+        ytop=${ytop} nowMs=${nowMs} win=${win} />`)}
+    </div>
 
     <footer>
       As of ${fmtTime(data.generated)} (Central) · Source: <a href="https://www.fly2houston.com/iah">Houston Airport System</a>${' · '}<a href="https://github.com/hadley/iah-wait-time">Code on GitHub</a>
