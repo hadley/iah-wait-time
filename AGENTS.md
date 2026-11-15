@@ -12,7 +12,7 @@ Scrapes IAH (Houston) security checkpoint wait times every 10 minutes via GitHub
 ## Dashboard
 
 - Dashboard source: `dashboard/template.html` (Preact + htm, vendored in `dashboard/vendor`). `3-build.R` builds `site/` (index.html + data.json).
-- After any change to the dashboard, always rebuild the rendered preview and show it in the Positron Viewer so the user can look at it: copy `site/` to a scratch dir, copy `dashboard/template.html` over its `index.html`, serve it with `python3 -m http.server`, and open the localhost URL with `workbench.action.positronPreview.openUrl`.
+- After any change to the dashboard, always rebuild the rendered preview and show it in the Positron Viewer so the user can look at it: copy `site/` to a scratch dir, fetch the latest data into it (`git fetch origin gh-pages && git show origin/gh-pages:data.json > <scratch>/data.json`), copy `dashboard/template.html` over its `index.html`, and open its `index.html` with `positronProxy.showHtmlPreview` (absolute path; it serves the whole directory, so `data.json` loads; no need to run your own server).
 
 ## Other
 
